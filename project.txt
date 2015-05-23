@@ -1,0 +1,5 @@
+Material used in the project:
+
+Paulo Cortez, Antonio Cerdeira, Fernando Almeida, 
+Telmo Matos, Jose Reis
+'Modeling wine preferences by data mining from physicochemical properties'

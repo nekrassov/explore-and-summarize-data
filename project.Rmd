@@ -1,0 +1,356 @@
+'White Wine Quality' by Alexei Nekrassov
+========================================================
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, packages}
+# Load all of the packages that you end up using
+# in your analysis in this code chunk.
+
+# Notice that the parameter "echo" was set to FALSE for this code chunk.
+# This prevents the code from displaying in the knitted HTML output.
+# You should set echo=FALSE for all code chunks in your file.
+
+library(ggplot2)
+library(gridExtra)
+library(GGally)
+```
+
+```{r echo=FALSE, Load_the_Data}
+# Load the Data
+setwd('C:/usr/docs/Analytics/Data Analyst Nanodegree/3 Explore and Summarize Data (Data Analysis with R)/project')
+wine <- read.csv('wineQualityWhites.csv')
+```
+
+This project analyzes data set of certain chemical properties of white Vino Verde wines and attempts to find correlation between wine quality and results of chemical analysis.
+
+# Univariate Plots Section
+First let's explore the data set to learn what wines we are dealing with.
+```{r echo=FALSE, Univariate_Plots}
+summary(wine)
+```
+The data set contains data for 4898 wines. Alcohol content ranges from 8 to 14.2% with median at 10.4%.
+
+```{r echo=FALSE, Univariate_Plots1}
+# Alcohol and Sugar histograms plotted side by side
+p1 <- ggplot(data = wine, aes(x = alcohol)) +
+  geom_bar(color = 'blueviolet', fill = 'blue') +
+  xlab('Alcohol % by volume') +
+  ggtitle('Alcohol histogram')
+p2 <- ggplot(data = wine, aes(x = residual.sugar)) +
+  geom_bar(color = 'blueviolet', fill = 'red') +
+  xlab('Residual sugar (g / dm^3)') +
+  ggtitle('Sugar histogram')
+
+grid.arrange(p1, p2, ncol = 2)
+```
+
+We see that the wines in data set are quite light in alcholol - maximum alcohol content is 14.2% and very few data samples are at that high point. Majority of wines are between 8.5 and 13% alcohol. Also, most of the wines are quite dry, with low sugar content.
+
+Let's now look at quality scores.
+
+```{r echo=FALSE, Univariate_Plots2}
+# quality scores histogram
+ggplot(data = wine, aes(x = quality)) +
+  geom_bar(color = 'blueviolet', fill = 'red', binwidth = 1) +
+  scale_x_continuous('Quality (0-10)', limits = c(0, 10), breaks=0:10) +
+  ggtitle('Quality histogram')
+table(wine$quality)
+
+# compare worst and best wines
+wine_4_and_under <- wine[wine$quality <= 4,]
+wine_5_to_7 <- subset(wine, quality >= 5 & quality <=7)
+wine_8_and_above <- wine[wine$quality >= 8,]
+
+# find proportion of good wines in the dataset
+nrow(wine_5_to_7)
+nrow(wine_5_to_7) / nrow(wine)
+
+```
+Quality score mode is 6 with 2198 (out of 4898) wines scoring at that level. Most of the wines (4535 out of 4898, almost 93%) are of good, but not great quality with scores between 5 and 7.
+
+GGpairs plot in the following section suggests there may be a relationship between chlorides level and quality of wine. Here we will look at chlorides histograms for wines of different quality levels.
+
+```{r echo=FALSE, Univariate_Plots3}
+# Chlorides level for three classes of wine plotted side by side
+p1 <- ggplot(data = wine_4_and_under, aes(x = chlorides)) +
+  geom_bar(color = 'blueviolet', fill = 'red') +
+  scale_x_continuous('Chlorides (g / dm^3)', limits = c(0,0.3)) +
+  ggtitle('Chlorides (bad)')
+p2 <- ggplot(data = wine_5_to_7, aes(x = chlorides)) +
+  geom_bar(color = 'blueviolet', fill = 'red') +
+  scale_x_continuous('Chlorides (g / dm^3)', limits = c(0,0.3)) +
+  ggtitle('Chlorides (good)')
+p3 <- ggplot(data = wine_8_and_above, aes(x = chlorides)) +
+  geom_bar(color = 'blueviolet', fill = 'red') +
+  scale_x_continuous('Chlorides (g / dm^3)', limits = c(0,0.3)) +
+  ggtitle('Chlorides (excellent)')
+grid.arrange(p1, p2, p3, ncol = 3)
+
+summary(wine_4_and_under$chlorides)
+summary(wine_8_and_above$chlorides)
+
+```
+
+
+# Univariate Analysis
+
+### What is the structure of your dataset?
+There are 4898 wines in the dataset with 12 features:  
+- fixed acidity (tartaric acid - g / dm^3)  
+- volatile acidity (acetic acid - g / dm^3)  
+- citric acid (g / dm^3)  
+- residual sugar (g / dm^3)  
+- chlorides (sodium chloride - g / dm^3  
+- free sulfur dioxide (mg / dm^3)  
+- total sulfur dioxide (mg / dm^3)  
+- density (g / cm^3)  
+- pH  
+- sulphates (potassium sulphate - g / dm3)  
+- alcohol (% by volume)  
+- quality (score between 0 and 10)  
+
+Other observations:  
+Median quality is 6. Almost 93% of wines are of average quality (scoring 5, 6 or 7).  
+Most of the wines are low in alcohol and sugar with median alcohol 10.4%, and median residual sugar 5.2 g/dm^3.
+
+### What is/are the main feature(s) of interest in your dataset?
+The main feature in the dataset is quality score. We have several chemical parameters that we will try to use as quality score predictors.
+
+### What other features in the dataset do you think will help support your investigation into your feature(s) of interest?
+Initial look at chlorides histograms suggests there may be relationship between chlorides contents and quality of wine.
+
+### Did you create any new variables from existing variables in the dataset?
+I created three new dataframes: for low, average and high quality wine. Later I added 'class' variable to the original dataframe to be used in faceted graphs and some of the multivariate charts.  
+When converting 'class' to factor, I had to specify the order of labels to get 'bad/good/excellent' order instead of default alphabetic 'bad/excellent/good'.
+
+### Of the features you investigated, were there any unusual distributions? Did you perform any operations on the data to tidy, adjust, or change the form of the data? If so, why did you do this?
+Alcohol and sugar distributions are skewed, but that is expected for this type of wine.
+Quality distribution is interesting in a sense that there are very few bad or excellent wines - most of the wines are of good, avearge quality.
+
+
+# Bivariate Plots Section
+We first run ggpairs, and that shows us there may be correlation between chlorides level and quality; we explore it further with scatterplot.  
+
+We also run separate ggpairs for the three 'classes' of wine: bad, good and excellent.
+```{r echo=FALSE, Bivariate_Plots}
+# ggpairs for all wines, and then separately for each class
+ggpairs(wine, params = c(shape = I('.'), outlier.shape = I('.')), 
+        title = 'All wines')
+
+ggpairs(wine_4_and_under, params = c(shape = I('.'), outlier.shape = I('.')),
+        title = 'Wines with quality score 4 and under')
+ggpairs(wine_5_to_7, params = c(shape = I('.'), outlier.shape = I('.')),
+        title = 'Wines with quality score 5 to 7')
+ggpairs(wine_8_and_above, params = c(shape = I('.'), outlier.shape = I('.')),
+        title = 'Wines with quality score 8 and above')
+
+# from full-scale versions of the ggpairs we see there may be 
+# relationship between chlorides and quality score - 
+# we check with separate scatterplot
+ggplot(data = wine, aes(x = chlorides, y = quality)) +
+  geom_point(color = 'blue') +
+  xlab('Chloride (g / dm^3)') + 
+  ylab('Quality score') +
+  ggtitle('Quality by chloride level')
+```
+
+I think there may be relationship between sugar content and quality, and I explore it with another scatterplot.  
+```{r echo=FALSE, Bivariate_Plots1}
+# Scatterplot of sugar and quality
+ggplot(data = wine, aes(x = residual.sugar, y = quality)) +
+  geom_point(color = 'blue') +
+  xlab('Residual sugar (g / dm^3)') +
+  ylab('Quality score') +
+  ggtitle('Quality by residual sugar level')
+```
+
+It is interesting to see if there is a correlation between sweetness and acidity.
+
+```{r echo=FALSE, Bivariate_Plots2}
+# can sweet be sour?..
+ggplot(data = wine, aes(x = residual.sugar, y = pH)) +
+  geom_point(color = 'blue') +
+  xlab('Residual sugar (g / dm^3)') +
+  ylab('pH') +
+  ggtitle('pH by residual sugar level')
+
+# exclude outliers
+ggplot(data = wine, aes(x = residual.sugar, y = pH)) +
+  geom_point(color = 'blue') +
+  xlim(0, 20) +
+  xlab('Residual sugar (g/dm^3)') +
+  ylab('pH') +
+  ggtitle('pH by residual sugar level (up to 20 g/dm^3)')
+```
+
+# Bivariate Analysis
+
+### Talk about some of the relationships you observed in this part of the investigation. How did the feature(s) of interest vary with other features in the dataset?
+What we can notice is that high chloride content practically excludes high quality score. Only three wines with chlorides > 0.1 have score 7 or higher, and none wines with chlorides > 0.15 score higher than 6.
+
+Therefore to get high scoring wine we need to keep chlorides to under 0.1 g/dm^3.
+
+The reverse though is not true: low chlorides level on its own is not a guarantee of excellent wine.
+
+High residual sugar is also undesirable: high-scoring wines have less than 20 g/dm^3 of sugar.
+
+### Did you observe any interesting relationships between the other features (not the main feature(s) of interest)?
+Usually people think of a wine being either sweet _OR_ acidic. But our scatterplot shows that in the case of white Vino Verde there is no strong correlation between these two qualities.
+
+### What was the strongest relationship you found?
+The strongest relationship that I found was between chlorides level and quality score.
+
+
+# Multivariate Plots Section
+We will use multivariate plots to further explore inter-relationships between alcohol level, acidity, sugar and quality score.
+```{r echo=FALSE, Multivariate_Plots}
+# add class variable
+# (adding it before this point makes ggpairs even less readable)
+wine$class <- factor(ifelse(wine$quality <= 4, 'bad', 
+                     ifelse(wine$quality >= 8, 'excellent', 'good')),
+                     levels = c("bad", "good", "excellent"))
+
+# use quality to color the dots
+ggplot(data = wine, aes(x = residual.sugar, y = alcohol)) +
+  geom_point(aes(color = quality, alpha = 1/3)) +
+  xlim(0, 25) +
+  xlab('Residual sugar (g/dm^3)') +
+  ylab('Alcohol (%)') +
+  ggtitle('Alcohol and Residual sugar')
+  
+# use class to color the dots
+ggplot(data = wine, aes(x = residual.sugar, y = alcohol)) +
+  geom_point(aes(color = class)) +
+  xlim(0, 25) +
+  xlab('Residual sugar (g/dm^3)') +
+  ylab('Alcohol (%)') +
+  ggtitle('Alcohol and Residual sugar (using wine class)')
+
+# the previous charts are still too busy
+# I tried rounding, jitter
+# but facting by class tells the story best:
+ggplot(data = wine, aes(x = residual.sugar, y = alcohol)) +
+  geom_point(aes(color = class, alpha = 1/10)) +
+  xlim(0, 25) +
+  xlab('Residual sugar (g/dm^3)') +
+  ylab('Alcohol (%)') +
+  ggtitle('Alcohol and Residual sugar (by wine class)') +
+  facet_wrap(~class)
+
+# looking at pH and sugar
+ggplot(data = wine, aes(x = residual.sugar, y = pH)) +
+  geom_point(aes(color = quality, alpha = 1/3)) +
+  xlim(0, 20) +
+  xlab('Residual sugar (g/dm^3)') +
+  ylab('pH') +
+  ggtitle('pH and Residual sugar')
+  
+ggplot(data = wine, aes(x = residual.sugar, y = pH)) +
+  geom_point(aes(color = class, alpha = 1/3)) +
+  xlim(0, 20) +
+  xlab('Residual sugar (g/dm^3)') +
+  ylab('pH') +
+  ggtitle('pH and Residual sugar (using wine class)')
+```
+
+
+# Multivariate Analysis
+
+### Talk about some of the relationships you observed in this part of the investigation. Were there features that strengthened each other in terms of looking at your feature(s) of interest?
+I plotted several variations of Alcohol/Residual sugar/quality charts. When we facet by class it becomes very noticeable the difference between bad and excellent wines - on average higher alcohol content in excellent wines than in bad wines; lower sugar in excellent wines than in good wines.
+
+### Were there any interesting or surprising interactions between features?
+With majority (almost 93%) of the wines falling into 'good' category, it is diffcult to see what chemical characteristics are desirable. It helps to look at 'bad' vs 'excellent' wines first to better see the distinction.
+
+### OPTIONAL: Did you create any models with your dataset? Discuss the strengths and limitations of your model.
+
+------
+
+# Final Plots and Summary
+
+### Plot One:
+```{r echo=FALSE, Plot_One}
+# boxplot of Alcohol by quality score
+ggplot(data = wine, aes(x = factor(quality), y = alcohol)) +
+  geom_boxplot(aes(fill = class)) +
+  ggtitle('Alcohol content and quality score relationship') +
+  xlab('Quality score') +
+  ylab('Alcohol (%)')
+```
+
+### Description One
+To better see the relationship between alcohol content and wine quality, we create boxplots of alcohol vs quality and color it according to wine class (bad/good/excellent).  
+
+We see that high-alcohol wines usually get high scores. Lower alcohol content leads to bad or good scoring wines.
+
+### Plot Two
+```{r echo=FALSE, Plot_Two}
+# Alcohol and density faceted by class
+ggplot(data = wine, aes(x = density, y = alcohol)) +
+  geom_point(aes(color = quality, alpha = 1/3)) +
+  xlim(0.985, 1.005) +
+  facet_wrap(~class) +
+  xlab('Density (g/cm^3)') +
+  ylab('Alcohol (%)') +
+  ggtitle('Alcohol and density')
+
+# pH and density faceted by class
+ggplot(data = wine, aes(x = density, y = pH)) +
+  geom_point(aes(color = quality, alpha = 1/3)) +
+  xlim(0.985, 1.005) +
+  facet_wrap(~class) +
+  xlab('Density (g/cm^3)') +
+  ylab('pH') +
+  ggtitle('pH and density')
+
+```
+
+### Description Two
+Wine density can be an important factor in overall wine quality, so we look into density and its relationship with alcohol content, pH and quality.  
+
+There is and inverse linear realtionship between density and alcohol. This is especially notieceable in the chart for good wines - because of multitude of data points, the chart alomst looks like it was painted with a single brush stroke.  
+
+We see that excellent wines have higher alcohol level, and therefore lower density.
+
+Excellent scoring wines have pH in a narrow range between 3.0 and 3.6
+
+### Plot Three
+```{r echo=FALSE, Plot_Three}
+# three acids and quality
+ggplot(data = wine, aes(x = factor(quality), y = fixed.acidity)) +
+  geom_boxplot(aes(fill = class)) +
+  ggtitle('Fixed acidity (tartaric acid)') +
+  xlab('Quality score') +
+  ylab('Fixed acidity (g/dm^3)')
+
+ggplot(data = wine, aes(x = factor(quality), y = volatile.acidity)) +
+  geom_boxplot(aes(fill = class)) +
+  ggtitle('Volatile acidity (acetic acid)') +
+  xlab('Quality score') +
+  ylab('Volatile acidity (g/dm^3)')
+
+ggplot(data = wine, aes(x = factor(quality), y = citric.acid)) +
+  geom_boxplot(aes(fill = class)) +
+  ggtitle('Citric acid') +
+  xlab('Quality score') +
+  ylab('Citric acid (g/dm^3)')
+
+# putting these there charts side by side squishes them too much
+#grid.arrange(p1, p2, p3, ncol = 3)
+
+```
+
+### Description Three
+Before we looked at pH factor. Here we look in detail into three different acids that contribute to pH, and how acid level is related to quality score.
+
+We notice that high fixed and volatile acidity lead to low scores and therefore are undesirable. High citric acid level on the other hand usually leads to excellent wines. Thus it is important to analyze the three pH contributors separately.
+
+------
+
+# Reflection
+Wine quality is a complex and subjective topic. And yet we saw that there are simple objective chemical factors that correlate with the quality score. For white Vino Verde:  
+- high chlorides level lead to low quality scores  
+- high residual sugar level leads to low quality scores  
+- high alcohol content leads to high quality scores  
+Some of these chemical properties can be controlled by winemakers. For example alcohol content is dependent on sugar level in raw grapes. The knowledge of these correlations between chemical properties and quality can help produce better wines, or when parameters are difficult to control - at least will lead to more accurate pricing of the wine.  
+
+In this project I was able to find some correlation between chemical properties of the wine (such as alcohol level, chlorides and residual sugar) and quality scores. Often it took several iterations of analysis to get to the plot that allows us to see relationship (like in the case of alcohol/residual sugar/quality). Further analysis with inferential statistics can be done to confirm the findings. 
